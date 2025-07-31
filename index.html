@@ -15,6 +15,13 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .modal-overlay { transition: opacity 0.3s ease; }
         .modal-content { transition: transform 0.3s ease; }
+        .bracket { display: flex; justify-content: flex-start; overflow-x: auto; padding: 20px; }
+        .round { display: flex; flex-direction: column; justify-content: space-around; min-width: 240px; margin-right: 60px; }
+        .match { background-color: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; margin-bottom: 50px; padding: 10px; position: relative; }
+        .team { display: flex; justify-content: space-between; padding: 5px; }
+        .winner { font-weight: bold; color: #16a34a; }
+        .match-connector { position: absolute; top: 50%; right: -30px; width: 30px; height: 2px; background-color: #9ca3af; }
+        .round-connector { position: absolute; top: 25%; right: -60px; width: 30px; height: 50%; border: 2px solid #9ca3af; border-left: none; border-radius: 0 10px 10px 0; }
     </style>
     <script>
         document.addEventListener('alpine:init', () => {
@@ -35,11 +42,12 @@
                     { id: 4, name: 'Priya Sharma', role: 'Student' },
                     { id: 5, name: 'Rohan Mehta', role: 'Student' },
                 ],
+                notifications: [
+                    { id: 2, text: "Match Reminder: Your team 'The All-Stars' plays tomorrow at 6 PM.", read: true },
+                ],
                 sports: [
-                    { id: 1, name: 'Badminton', icon: '🏸' },
-                    { id: 2, name: 'Football', icon: '⚽' },
-                    { id: 3, name: 'Basketball', icon: '🏀' },
-                    { id: 4, name: 'Tennis', icon: '🎾' },
+                    { id: 1, name: 'Badminton', icon: '🏸' }, { id: 2, name: 'Football', icon: '⚽' },
+                    { id: 3, name: 'Basketball', icon: '🏀' }, { id: 4, name: 'Tennis', icon: '🎾' },
                 ],
                 selectedSport: {},
                 timeSlots: [
@@ -55,52 +63,51 @@
                     { id: 3, user: 'Anika Reddy', facility: 'Basketball Court', time: 'Yesterday, 5:00 PM', status: 'Approved' },
                 ],
                 tournaments: [
-                    { id: 1, name: "Inter-Hall Football '25", sport: 'Football', status: 'Ongoing', fee: 500, statusClass: 'bg-green-100 text-green-800', matches: [
-                        { id: 1, team1: 'Hall of Res. III', score1: 2, team2: 'Hall of Res. V', score2: 2 },
-                        { id: 2, team1: 'Hall of Res. VII', score1: 1, team2: 'Hall of Res. VIII', score2: 0 }
+                    { id: 1, name: "Inter-Hall Football '25", sport: 'Football', status: 'Ongoing', fee: 500, statusClass: 'bg-green-100 text-green-800', teams: ['Hall of Res. III', 'Hall of Res. V', 'Hall of Res. VII', 'Hall of Res. VIII'], matches: [
+                        { round: 1, id: 1, team1: 'Hall of Res. III', score1: 2, team2: 'Hall of Res. V', score2: 3, winner: 'Hall of Res. V' },
+                        { round: 1, id: 2, team1: 'Hall of Res. VII', score1: 1, team2: 'Hall of Res. VIII', score2: 0, winner: 'Hall of Res. VII' }
                     ]},
-                    { id: 2, name: 'Summer Badminton Open', sport: 'Badminton', status: 'Registration Open', fee: 250, statusClass: 'bg-blue-100 text-blue-800', matches: [] }
+                    { id: 2, name: 'Summer Badminton Open', sport: 'Badminton', status: 'Registration Open', fee: 250, statusClass: 'bg-blue-100 text-blue-800', teams: [], matches: [] }
                 ],
+                leaderboards: {
+                    'Football': [
+                        { rank: 1, name: 'Rohan Mehta', score: 22 },
+                        { rank: 2, name: 'Alex Johnson', score: 19 },
+                        { rank: 3, name: 'Priya Sharma', score: 15 },
+                    ],
+                    'Badminton': [
+                        { rank: 1, name: 'Anika Reddy', score: 45 },
+                        { rank: 2, name: 'Alex Johnson', score: 41 },
+                    ]
+                },
                 selectedTournament: {},
                 selectedMatch: null,
                 score1Input: 0,
                 score2Input: 0,
                 showModal: false,
-                modalContent: '', // 'register', 'payment', 'new-tournament'
+                modalContent: '',
                 newTeamName: '',
 
                 // METHODS
-                loginAs(role) {
-                    this.loggedInUser = this.users[role];
-                    this.view = 'dashboard';
-                },
-                logout() {
-                    this.loggedInUser = null;
-                    this.resetState();
-                },
-                selectSport(sportId) {
-                    this.selectedSport = this.sports.find(s => s.id === sportId);
-                    this.view = 'book-slot';
-                    this.selectedSlot = null;
-                },
-                selectSlot(slot) {
-                    if (slot.status === 'Available') this.selectedSlot = slot;
-                },
+                loginAs(role) { this.loggedInUser = this.users[role]; this.view = 'dashboard'; },
+                logout() { this.loggedInUser = null; this.resetState(); },
+                selectSport(sportId) { this.selectedSport = this.sports.find(s => s.id === sportId); this.view = 'book-slot'; this.selectedSlot = null; },
+                selectSlot(slot) { if (slot.status === 'Available') this.selectedSlot = slot; },
                 confirmBooking() {
+                    const newBooking = { id: this.bookings.length + 1, user: this.loggedInUser.name, facility: `${this.selectedSport.name} Court`, time: `Today, ${this.selectedSlot.time}`, status: 'Pending' };
+                    this.bookings.unshift(newBooking);
                     this.bookingSuccess = true;
-                    if (this.selectedSlot) {
-                        const slotInArray = this.timeSlots.find(s => s.time === this.selectedSlot.time);
-                        if(slotInArray) slotInArray.status = 'Booked';
-                    }
                 },
                 approveBooking(bookingId) {
                     const booking = this.bookings.find(b => b.id === bookingId);
-                    if(booking) booking.status = 'Approved';
+                    if(booking) {
+                        booking.status = 'Approved';
+                        if (booking.user === 'Alex Johnson') {
+                            this.notifications.unshift({ id: Date.now(), text: `Your booking for ${booking.facility} is confirmed!`, read: false });
+                        }
+                    }
                 },
-                selectTournament(tourneyId) {
-                    this.selectedTournament = this.tournaments.find(t => t.id === tourneyId);
-                    this.view = 'tournament-detail';
-                },
+                selectTournament(tourneyId) { this.selectedTournament = this.tournaments.find(t => t.id === tourneyId); this.view = 'tournament-detail'; },
                 selectMatch(matchId) {
                     this.selectedMatch = this.selectedTournament.matches.find(m => m.id === matchId);
                     this.score1Input = this.selectedMatch.score1;
@@ -111,46 +118,75 @@
                     if (this.selectedMatch) {
                         this.selectedMatch.score1 = this.score1Input;
                         this.selectedMatch.score2 = this.score2Input;
+                        if(this.score1Input > this.score2Input) this.selectedMatch.winner = this.selectedMatch.team1;
+                        else if (this.score2Input > this.score1Input) this.selectedMatch.winner = this.selectedMatch.team2;
+                        else this.selectedMatch.winner = 'Draw';
                         this.view = 'tournament-detail';
                     }
                 },
-                registerForTournament() {
-                    this.modalContent = 'register';
-                    this.showModal = true;
-                },
-                processRegistration() {
-                    this.modalContent = 'payment';
-                },
+                registerForTournament() { this.modalContent = 'register'; this.showModal = true; },
+                processRegistration() { this.modalContent = 'payment'; },
                 processPayment() {
                     this.showModal = false;
+                    this.selectedTournament.teams.push(this.newTeamName);
                     alert('Registration & Payment Successful!');
                     this.newTeamName = '';
                 },
-                openNewTournamentModal() {
-                    this.modalContent = 'new-tournament';
-                    this.showModal = true;
-                },
+                openNewTournamentModal() { this.modalContent = 'new-tournament'; this.showModal = true; },
                 createNewTournament(event) {
                     const formData = new FormData(event.target);
                     this.tournaments.push({
-                        id: this.tournaments.length + 1,
-                        name: formData.get('name'),
-                        sport: formData.get('sport'),
-                        status: 'Registration Open',
-                        fee: formData.get('fee'),
-                        statusClass: 'bg-blue-100 text-blue-800',
-                        matches: []
+                        id: this.tournaments.length + 1, name: formData.get('name'), sport: formData.get('sport'),
+                        status: 'Registration Open', fee: formData.get('fee'), statusClass: 'bg-blue-100 text-blue-800', teams: [], matches: []
                     });
                     this.showModal = false;
                     event.target.reset();
                 },
+                generateBrackets() {
+                    if (this.selectedTournament.teams.length < 2) {
+                        alert('Not enough teams to generate a bracket.');
+                        return;
+                    }
+                    const shuffledTeams = [...this.selectedTournament.teams].sort(() => 0.5 - Math.random());
+                    const newMatches = [];
+                    for (let i = 0; i < shuffledTeams.length; i += 2) {
+                        if(shuffledTeams[i+1]) {
+                            newMatches.push({
+                                round: 1, id: (i/2) + 1, team1: shuffledTeams[i], score1: 0, team2: shuffledTeams[i+1], score2: 0, winner: null
+                            });
+                        } else {
+                            newMatches.push({ round: 1, id: (i/2) + 1, team1: shuffledTeams[i], score1: 'BYE', team2: '', score2: '', winner: shuffledTeams[i] });
+                        }
+                    }
+                    this.selectedTournament.matches = newMatches;
+                    this.selectedTournament.status = 'Ongoing';
+                    this.selectedTournament.statusClass = 'bg-green-100 text-green-800';
+                    alert('Bracket generated successfully!');
+                },
+                getRoundMatches(round) {
+                    if (!this.selectedTournament || !this.selectedTournament.matches) return [];
+                    return this.selectedTournament.matches.filter(m => m.round === round);
+                },
+                getNextRoundMatches(currentRound) {
+                    if (!this.selectedTournament || !this.selectedTournament.matches) return [];
+                    const winners = this.selectedTournament.matches.filter(m => m.round === currentRound && m.winner && m.winner !== 'Draw').map(m => m.winner);
+                    const nextRoundMatches = [];
+                    for (let i = 0; i < winners.length; i += 2) {
+                        if (winners[i+1]) {
+                            nextRoundMatches.push({
+                                round: currentRound + 1, id: this.selectedTournament.matches.length + (i/2) + 1,
+                                team1: winners[i], score1: 0, team2: winners[i+1], score2: 0, winner: null
+                            });
+                        } else {
+                            // Winner gets a bye to the next round if odd number of winners
+                             nextRoundMatches.push({ round: currentRound + 1, id: this.selectedTournament.matches.length + (i/2) + 1, team1: winners[i], score1: 'BYE', team2: '', score2: '', winner: winners[i] });
+                        }
+                    }
+                    return nextRoundMatches;
+                },
                 resetState() {
-                    this.view = 'dashboard';
-                    this.selectedSport = {};
-                    this.selectedSlot = null;
-                    this.bookingSuccess = false;
-                    this.selectedTournament = {};
-                    this.selectedMatch = null;
+                    this.view = 'dashboard'; this.selectedSport = {}; this.selectedSlot = null; this.bookingSuccess = false;
+                    this.selectedTournament = {}; this.selectedMatch = null;
                 }
             }))
         })
@@ -191,6 +227,7 @@
                                 <a href="#" @click.prevent="view = 'dashboard'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'dashboard' }"><span>🏠</span><span class="ml-3">Dashboard</span></a>
                                 <a href="#" @click.prevent="view = 'book'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('book') }"><span>📅</span><span class="ml-3">Book a Facility</span></a>
                                 <a href="#" @click.prevent="view = 'tournaments'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('tournament') }"><span>🏆</span><span class="ml-3">Tournaments</span></a>
+                                <a href="#" @click.prevent="view = 'leaderboard'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'leaderboard' }"><span>📈</span><span class="ml-3">Leaderboards</span></a>
                                 <a href="#" @click.prevent="view = 'profile'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'profile' }"><span>👤</span><span class="ml-3">My Profile</span></a>
                             </div>
                         </template>
@@ -231,9 +268,12 @@
                             <!-- Student Dashboard -->
                             <div x-show="loggedInUser.role === 'student'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <div class="bg-white p-6 rounded-lg shadow-md">
-                                    <h3 class="font-bold text-lg mb-2">Upcoming Booking</h3>
-                                    <p class="text-gray-600">Badminton Court 2</p>
-                                    <p class="font-semibold text-indigo-600">Today, 5:00 PM - 6:00 PM</p>
+                                    <h3 class="font-bold text-lg mb-2">Notifications</h3>
+                                    <div class="space-y-2">
+                                        <template x-for="notification in notifications" :key="notification.id">
+                                            <p class="text-sm p-2 rounded-md" :class="notification.read ? 'text-gray-500' : 'bg-indigo-100 text-indigo-800 font-semibold'" x-text="notification.text"></p>
+                                        </template>
+                                    </div>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
                                     <h3 class="font-bold text-lg mb-2">Next Tournament Match</h3>
@@ -260,11 +300,11 @@
                             <!-- Super-admin Dashboard -->
                             <div x-show="loggedInUser.role === 'super-admin'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                                    <p class="text-4xl font-bold text-indigo-600">2</p>
+                                    <p class="text-4xl font-bold text-indigo-600" x-text="allUsers.filter(u => u.role === 'Admin').length"></p>
                                     <p class="text-gray-500 font-semibold">Admin Accounts</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                                    <p class="text-4xl font-bold text-green-600">1,247</p>
+                                    <p class="text-4xl font-bold text-green-600" x-text="allUsers.length"></p>
                                     <p class="text-gray-500 font-semibold">Total Users</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md text-center">
@@ -274,9 +314,6 @@
                             </div>
                         </div>
 
-                        <!-- Other Views -->
-                        <!-- ... (Rest of the views from previous code) ... -->
-                        
                         <!-- Manage Admins (Super-admin) -->
                         <div x-show="view === 'manage-admins'">
                              <h2 class="text-3xl font-bold text-gray-800 mb-6">Manage Admins</h2>
@@ -328,13 +365,46 @@
                                         <div class="border p-4 rounded-lg">
                                             <p class="font-bold">Inter-Hall Football '25</p>
                                             <p class="text-sm text-gray-500">vs. Hall of Res. V</p>
-                                            <p class="font-semibold text-green-600">Result: Win (3-1)</p>
-                                        </div>
-                                         <div class="border p-4 rounded-lg">
-                                            <p class="font-bold">Inter-Hall Football '25</p>
-                                            <p class="text-sm text-gray-500">vs. Hall of Res. II</p>
                                             <p class="font-semibold text-gray-600">Result: Draw (2-2)</p>
                                         </div>
+                                         <div class="border p-4 rounded-lg">
+                                            <p class="font-bold">Inter-Hall Football '24</p>
+                                            <p class="text-sm text-gray-500">vs. Hall of Res. II</p>
+                                            <p class="font-semibold text-green-600">Result: Win (3-1)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leaderboard View -->
+                        <div x-show="view === 'leaderboard'">
+                            <h2 class="text-3xl font-bold text-gray-800 mb-6">Leaderboards</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                    <h3 class="text-xl font-bold mb-4">Football Top Scorers</h3>
+                                    <div class="bg-white rounded-lg shadow-md">
+                                        <ul class="divide-y divide-gray-200">
+                                            <template x-for="player in leaderboards.Football" :key="player.rank">
+                                                <li class="p-4 flex justify-between items-center">
+                                                    <span class="font-semibold" x-text="`${player.rank}. ${player.name}`"></span>
+                                                    <span class="font-bold text-indigo-600" x-text="player.score"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold mb-4">Badminton Top Players</h3>
+                                    <div class="bg-white rounded-lg shadow-md">
+                                        <ul class="divide-y divide-gray-200">
+                                            <template x-for="player in leaderboards.Badminton" :key="player.rank">
+                                                <li class="p-4 flex justify-between items-center">
+                                                    <span class="font-semibold" x-text="`${player.rank}. ${player.name}`"></span>
+                                                    <span class="font-bold text-indigo-600" x-text="player.score"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
@@ -392,8 +462,8 @@
                             </div>
                             <!-- Final Success Message -->
                             <div x-show="bookingSuccess" class="bg-green-100 border-l-4 border-green-500 text-green-700 p-6 rounded-lg shadow-md">
-                                <h3 class="font-bold text-lg">Booking Confirmed!</h3>
-                                <p>Your booking for <span x-text="selectedSport.name" class="font-semibold"></span> at <span x-text="selectedSlot ? selectedSlot.time : ''" class="font-semibold"></span> is confirmed. See you on the court!</p>
+                                <h3 class="font-bold text-lg">Booking Submitted!</h3>
+                                <p>Your booking for <span x-text="selectedSport.name" class="font-semibold"></span> at <span x-text="selectedSlot ? selectedSlot.time : ''" class="font-semibold"></span> is now pending approval from an administrator.</p>
                                 <button @click="bookingSuccess = false; view = 'dashboard'" class="mt-4 font-semibold text-green-800">→ Go to Dashboard</button>
                             </div>
                         </div>
@@ -435,28 +505,60 @@
                             <!-- Tournament Detail / Bracket -->
                             <div x-show="view === 'tournament-detail'">
                                 <button @click="view = 'tournaments'" class="mb-4 text-indigo-600 font-semibold">← Back to Tournaments</button>
-                                <h2 class="text-3xl font-bold text-gray-800 mb-2" x-text="selectedTournament.name"></h2>
-                                <p class="text-gray-500 mb-6">Semi-Finals</p>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div x-show="loggedInUser.role === 'admin'" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg md:col-span-2">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h2 class="text-3xl font-bold text-gray-800 mb-2" x-text="selectedTournament.name"></h2>
+                                        <p class="text-gray-500 mb-6">Tournament Bracket & Teams</p>
+                                    </div>
+                                    <button x-show="loggedInUser.role === 'admin' && selectedTournament.matches.length === 0" @click="generateBrackets()" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">Generate Brackets</button>
+                                </div>
+                                <div class="flex space-x-4 border-b mb-4">
+                                    <button @click="selectedTournament.tab = 'bracket'" class="py-2 px-4 font-semibold" :class="{ 'text-indigo-600 border-b-2 border-indigo-600': selectedTournament.tab === 'bracket' || !selectedTournament.tab }">Bracket</button>
+                                    <button @click="selectedTournament.tab = 'teams'" class="py-2 px-4 font-semibold" :class="{ 'text-indigo-600 border-b-2 border-indigo-600': selectedTournament.tab === 'teams' }">Registered Teams</button>
+                                </div>
+
+                                <!-- Bracket View -->
+                                <div x-show="selectedTournament.tab === 'bracket' || !selectedTournament.tab">
+                                    <div x-show="loggedInUser.role === 'admin' && selectedTournament.matches.length > 0" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg mb-6">
                                         <p><strong>Admin Action:</strong> Click on a match to update its score.</p>
                                     </div>
-                                    <template x-if="selectedTournament.matches && selectedTournament.matches.length > 0">
-                                        <template x-for="match in selectedTournament.matches" :key="match.id">
-                                            <div @click="loggedInUser.role === 'admin' ? selectMatch(match.id) : null" class="bg-white p-4 rounded-lg shadow-md" :class="{'cursor-pointer hover:bg-indigo-50': loggedInUser.role === 'admin'}">
-                                                <p class="text-sm text-gray-500" x-text="`Match ${match.id}`"></p>
-                                                <div class="flex justify-between items-center mt-2">
-                                                    <span class="font-semibold" x-text="match.team1"></span><span class="font-bold text-xl" x-text="match.score1"></span>
+                                    <div class="bracket">
+                                        <!-- Round 1 -->
+                                        <div class="round">
+                                            <h3 class="font-bold text-center mb-4">Round 1</h3>
+                                            <template x-for="match in getRoundMatches(1)" :key="match.id">
+                                                <div @click="loggedInUser.role === 'admin' ? selectMatch(match.id) : null" class="match" :class="{'cursor-pointer hover:ring-2 hover:ring-indigo-400': loggedInUser.role === 'admin'}">
+                                                    <div class="team" :class="{'winner': match.winner === match.team1}"><span x-text="match.team1"></span><span x-text="match.score1"></span></div>
+                                                    <div class="team" :class="{'winner': match.winner === match.team2}"><span x-text="match.team2"></span><span x-text="match.score2"></span></div>
+                                                    <div class="match-connector" x-show="getRoundMatches(2).length > 0"></div>
                                                 </div>
-                                                <div class="flex justify-between items-center mt-1">
-                                                    <span class="font-semibold" x-text="match.team2"></span><span class="font-bold text-xl" x-text="match.score2"></span>
+                                            </template>
+                                        </div>
+                                        <!-- Round 2 (Finals) -->
+                                        <div class="round">
+                                            <h3 class="font-bold text-center mb-4">Finals</h3>
+                                            <template x-for="match in getNextRoundMatches(1)" :key="match.id">
+                                                <div @click="loggedInUser.role === 'admin' ? selectMatch(match.id) : null" class="match" :class="{'cursor-pointer hover:ring-2 hover:ring-indigo-400': loggedInUser.role === 'admin'}">
+                                                    <div class="team" :class="{'winner': match.winner === match.team1}"><span x-text="match.team1"></span><span x-text="match.score1"></span></div>
+                                                    <div class="team" :class="{'winner': match.winner === match.team2}"><span x-text="match.team2"></span><span x-text="match.score2"></span></div>
                                                 </div>
-                                            </div>
-                                        </template>
-                                    </template>
-                                    <template x-if="!selectedTournament.matches || selectedTournament.matches.length === 0">
-                                        <p class="text-gray-500 md:col-span-2">Brackets for this tournament have not been generated yet.</p>
-                                    </template>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Registered Teams View -->
+                                <div x-show="selectedTournament.tab === 'teams'">
+                                    <div class="bg-white p-6 rounded-lg shadow-md">
+                                        <ul class="list-decimal list-inside">
+                                            <template x-for="team in selectedTournament.teams" :key="team">
+                                                <li x-text="team"></li>
+                                            </template>
+                                            <template x-if="selectedTournament.teams.length === 0">
+                                                <p class="text-gray-500">No teams have registered yet.</p>
+                                            </template>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                             <!-- Admin Score Update View -->
