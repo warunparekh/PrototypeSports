@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>University Sports Platform Prototype</title>
+    <title>University Sports Platform - Full Prototype</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         [x-cloak] { display: none !important; }
-        .sidebar-link.active { background-color: #1e40af; color: white; }
-        .sidebar-link:not(.active):hover { background-color: #1e3a8a; }
+        .sidebar-link.active { background-color: #4338ca; color: white; }
+        .sidebar-link:not(.active):hover { background-color: #4f46e5; }
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .calendar-day { transition: all 0.2s ease-in-out; }
+        .modal-overlay { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
     </style>
     <script>
         document.addEventListener('alpine:init', () => {
@@ -24,9 +25,16 @@
                 
                 // MOCK DATA
                 users: {
-                    student: { name: 'Alex', role: 'student' },
-                    admin: { name: 'Dr. Evans', role: 'admin' }
+                    student: { id: 1, name: 'Alex Johnson', role: 'student', type: 'internal' },
+                    admin: { id: 2, name: 'Dr. Evelyn Reed', role: 'admin' },
+                    superAdmin: { id: 3, name: 'Director Smith', role: 'super-admin' },
                 },
+                allUsers: [
+                    { id: 1, name: 'Alex Johnson', role: 'Student' },
+                    { id: 2, name: 'Dr. Evelyn Reed', role: 'Admin' },
+                    { id: 4, name: 'Priya Sharma', role: 'Student' },
+                    { id: 5, name: 'Rohan Mehta', role: 'Student' },
+                ],
                 sports: [
                     { id: 1, name: 'Badminton', icon: '🏸' },
                     { id: 2, name: 'Football', icon: '⚽' },
@@ -35,12 +43,9 @@
                 ],
                 selectedSport: {},
                 timeSlots: [
-                    { time: '3:00 PM', status: 'Booked' },
-                    { time: '4:00 PM', status: 'Booked' },
-                    { time: '5:00 PM', status: 'Available' },
-                    { time: '6:00 PM', status: 'Available' },
-                    { time: '7:00 PM', status: 'Booked' },
-                    { time: '8:00 PM', status: 'Available' },
+                    { time: '3:00 PM', status: 'Booked' }, { time: '4:00 PM', status: 'Booked' },
+                    { time: '5:00 PM', status: 'Available' }, { time: '6:00 PM', status: 'Available' },
+                    { time: '7:00 PM', status: 'Booked' }, { time: '8:00 PM', status: 'Available' },
                 ],
                 selectedSlot: null,
                 bookingSuccess: false,
@@ -50,16 +55,19 @@
                     { id: 3, user: 'Anika Reddy', facility: 'Basketball Court', time: 'Yesterday, 5:00 PM', status: 'Approved' },
                 ],
                 tournaments: [
-                    { id: 1, name: "Inter-Hall Football '25", sport: 'Football', status: 'Ongoing', statusClass: 'bg-green-100 text-green-800', matches: [
+                    { id: 1, name: "Inter-Hall Football '25", sport: 'Football', status: 'Ongoing', fee: 500, statusClass: 'bg-green-100 text-green-800', matches: [
                         { id: 1, team1: 'Hall of Res. III', score1: 2, team2: 'Hall of Res. V', score2: 2 },
                         { id: 2, team1: 'Hall of Res. VII', score1: 1, team2: 'Hall of Res. VIII', score2: 0 }
                     ]},
-                    { id: 2, name: 'Summer Badminton Open', sport: 'Badminton', status: 'Registration Open', statusClass: 'bg-blue-100 text-blue-800', matches: [] }
+                    { id: 2, name: 'Summer Badminton Open', sport: 'Badminton', status: 'Registration Open', fee: 250, statusClass: 'bg-blue-100 text-blue-800', matches: [] }
                 ],
                 selectedTournament: {},
                 selectedMatch: null,
                 score1Input: 0,
                 score2Input: 0,
+                showModal: false,
+                modalContent: '', // 'register', 'payment', 'new-tournament'
+                newTeamName: '',
 
                 // METHODS
                 loginAs(role) {
@@ -76,9 +84,7 @@
                     this.selectedSlot = null;
                 },
                 selectSlot(slot) {
-                    if (slot.status === 'Available') {
-                        this.selectedSlot = slot;
-                    }
+                    if (slot.status === 'Available') this.selectedSlot = slot;
                 },
                 confirmBooking() {
                     this.bookingSuccess = true;
@@ -108,6 +114,36 @@
                         this.view = 'tournament-detail';
                     }
                 },
+                registerForTournament() {
+                    this.modalContent = 'register';
+                    this.showModal = true;
+                },
+                processRegistration() {
+                    this.modalContent = 'payment';
+                },
+                processPayment() {
+                    this.showModal = false;
+                    alert('Registration & Payment Successful!');
+                    this.newTeamName = '';
+                },
+                openNewTournamentModal() {
+                    this.modalContent = 'new-tournament';
+                    this.showModal = true;
+                },
+                createNewTournament(event) {
+                    const formData = new FormData(event.target);
+                    this.tournaments.push({
+                        id: this.tournaments.length + 1,
+                        name: formData.get('name'),
+                        sport: formData.get('sport'),
+                        status: 'Registration Open',
+                        fee: formData.get('fee'),
+                        statusClass: 'bg-blue-100 text-blue-800',
+                        matches: []
+                    });
+                    this.showModal = false;
+                    event.target.reset();
+                },
                 resetState() {
                     this.view = 'dashboard';
                     this.selectedSport = {};
@@ -125,15 +161,17 @@
 
     <div x-data="sportsPlatform" x-cloak>
         <!-- Login Screen -->
-        <div x-show="!loggedInUser" class="min-h-screen flex items-center justify-center bg-blue-900">
+        <div x-show="!loggedInUser" class="min-h-screen flex items-center justify-center bg-indigo-900">
             <div class="bg-white p-8 rounded-lg shadow-2xl max-w-sm w-full animate-fade-in">
                 <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">Sports Platform</h2>
-                <p class="text-center text-gray-500 mb-6">Prototype Login</p>
+                <p class="text-center text-gray-500 mb-6">Full Interactive Prototype</p>
                 <div class="space-y-4">
-                    <button @click="loginAs('student')" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Login as Student (Alex)</button>
-                    <button @click="loginAs('admin')" class="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition duration-300">Login as Admin (Dr. Evans)</button>
+                    <button @click="loginAs('student')" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Login as Student</button>
+                    <button @click="loginAs('admin')" class="w-full bg-slate-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-800 transition duration-300">Login as Admin</button>
+                    <button @click="loginAs('superAdmin')" class="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition duration-300">Login as Super-admin</button>
+                    <a href="#" @click.prevent="loggedInUser = {name: 'Guest', role: 'guest'}; view = 'tournaments'" class="block text-center mt-4 text-indigo-600 hover:underline">Continue as Guest</a>
                 </div>
-                <p class="text-xs text-gray-400 text-center mt-6">This is an interactive prototype. No real data is used or stored.</p>
+                <p class="text-xs text-gray-400 text-center mt-6">This is a high-fidelity prototype. No real data is used or stored.</p>
             </div>
         </div>
 
@@ -141,10 +179,10 @@
         <template x-if="loggedInUser">
             <div class="flex h-screen bg-gray-100">
                 <!-- Sidebar -->
-                <aside class="w-64 bg-blue-800 text-white flex flex-col flex-shrink-0">
+                <aside class="w-64 bg-indigo-800 text-white flex flex-col flex-shrink-0">
                     <div class="p-6">
                         <h1 class="text-xl font-bold">UniSports</h1>
-                        <p class="text-sm text-blue-200" x-text="loggedInUser.role === 'student' ? 'Student Portal' : 'Admin Portal'"></p>
+                        <p class="text-sm text-indigo-200" x-text="`${loggedInUser.role.charAt(0).toUpperCase() + loggedInUser.role.slice(1)} Portal`"></p>
                     </div>
                     <nav class="flex-1 px-4 space-y-2">
                         <!-- Student Links -->
@@ -153,6 +191,7 @@
                                 <a href="#" @click.prevent="view = 'dashboard'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'dashboard' }"><span>🏠</span><span class="ml-3">Dashboard</span></a>
                                 <a href="#" @click.prevent="view = 'book'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('book') }"><span>📅</span><span class="ml-3">Book a Facility</span></a>
                                 <a href="#" @click.prevent="view = 'tournaments'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('tournament') }"><span>🏆</span><span class="ml-3">Tournaments</span></a>
+                                <a href="#" @click.prevent="view = 'profile'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'profile' }"><span>👤</span><span class="ml-3">My Profile</span></a>
                             </div>
                         </template>
                         <!-- Admin Links -->
@@ -163,9 +202,23 @@
                                 <a href="#" @click.prevent="view = 'tournaments'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('tournament') }"><span>🏅</span><span class="ml-3">Manage Tournaments</span></a>
                             </div>
                         </template>
+                        <!-- Super-admin Links -->
+                        <template x-if="loggedInUser.role === 'super-admin'">
+                             <div>
+                                <a href="#" @click.prevent="view = 'dashboard'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'dashboard' }"><span>👑</span><span class="ml-3">System Dashboard</span></a>
+                                <a href="#" @click.prevent="view = 'manage-admins'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view === 'manage-admins' }"><span>🛠️</span><span class="ml-3">Manage Admins</span></a>
+                            </div>
+                        </template>
+                        <!-- Guest Links -->
+                        <template x-if="loggedInUser.role === 'guest'">
+                             <div>
+                                <a href="#" @click.prevent="view = 'tournaments'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('tournament') }"><span>🏆</span><span class="ml-3">Tournaments</span></a>
+                                <a href="#" @click.prevent="view = 'book'" class="sidebar-link flex items-center p-3 rounded-lg transition-colors" :class="{ 'active': view.startsWith('book') }"><span>📅</span><span class="ml-3">View Facilities</span></a>
+                            </div>
+                        </template>
                     </nav>
-                    <div class="p-4 border-t border-blue-700">
-                        <button @click="logout()" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-blue-700 transition-colors"><span>🚪</span><span class="ml-3">Logout</span></button>
+                    <div class="p-4 border-t border-indigo-700">
+                        <button @click="logout()" class="w-full text-left flex items-center p-3 rounded-lg hover:bg-indigo-700 transition-colors"><span>🚪</span><span class="ml-3">Logout</span></button>
                     </div>
                 </aside>
 
@@ -180,7 +233,7 @@
                                 <div class="bg-white p-6 rounded-lg shadow-md">
                                     <h3 class="font-bold text-lg mb-2">Upcoming Booking</h3>
                                     <p class="text-gray-600">Badminton Court 2</p>
-                                    <p class="font-semibold text-blue-600">Today, 5:00 PM - 6:00 PM</p>
+                                    <p class="font-semibold text-indigo-600">Today, 5:00 PM - 6:00 PM</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
                                     <h3 class="font-bold text-lg mb-2">Next Tournament Match</h3>
@@ -192,7 +245,7 @@
                             <!-- Admin Dashboard -->
                             <div x-show="loggedInUser.role === 'admin'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                                    <p class="text-4xl font-bold text-blue-600" x-text="bookings.filter(b => b.status === 'Pending').length"></p>
+                                    <p class="text-4xl font-bold text-indigo-600" x-text="bookings.filter(b => b.status === 'Pending').length"></p>
                                     <p class="text-gray-500 font-semibold">Pending Bookings</p>
                                 </div>
                                 <div class="bg-white p-6 rounded-lg shadow-md text-center">
@@ -204,15 +257,99 @@
                                     <p class="text-gray-500 font-semibold">Unverified Scores</p>
                                 </div>
                             </div>
+                            <!-- Super-admin Dashboard -->
+                            <div x-show="loggedInUser.role === 'super-admin'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                                    <p class="text-4xl font-bold text-indigo-600">2</p>
+                                    <p class="text-gray-500 font-semibold">Admin Accounts</p>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                                    <p class="text-4xl font-bold text-green-600">1,247</p>
+                                    <p class="text-gray-500 font-semibold">Total Users</p>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                                    <p class="text-4xl font-bold text-red-500">1</p>
+                                    <p class="text-gray-500 font-semibold">System Alert</p>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Booking Views (Student) -->
+                        <!-- Other Views -->
+                        <!-- ... (Rest of the views from previous code) ... -->
+                        
+                        <!-- Manage Admins (Super-admin) -->
+                        <div x-show="view === 'manage-admins'">
+                             <h2 class="text-3xl font-bold text-gray-800 mb-6">Manage Admins</h2>
+                             <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="p-4 text-left font-semibold text-gray-600">Name</th>
+                                            <th class="p-4 text-left font-semibold text-gray-600">Role</th>
+                                            <th class="p-4"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        <template x-for="user in allUsers.filter(u => u.role === 'Admin')" :key="user.id">
+                                            <tr>
+                                                <td class="p-4 font-semibold" x-text="user.name"></td>
+                                                <td class="p-4 text-gray-600" x-text="user.role"></td>
+                                                <td class="p-4 text-right">
+                                                    <button class="text-red-500 font-semibold hover:underline">Remove</button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Profile View (Student) -->
+                        <div x-show="view === 'profile'">
+                            <h2 class="text-3xl font-bold text-gray-800 mb-6">My Profile</h2>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div class="lg:col-span-1">
+                                    <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                                        <div class="w-24 h-24 rounded-full bg-indigo-200 mx-auto mb-4 flex items-center justify-center text-4xl">👤</div>
+                                        <h3 class="text-2xl font-bold" x-text="loggedInUser.name"></h3>
+                                        <p class="text-gray-500">Internal Student</p>
+                                    </div>
+                                    <div class="bg-white p-6 rounded-lg shadow-md mt-8">
+                                        <h4 class="font-bold text-lg mb-4">Badges</h4>
+                                        <div class="flex space-x-4">
+                                            <span class="text-4xl" title="Inter-Hall Football '24 Champion">🏆</span>
+                                            <span class="text-4xl" title="MVP Badminton Open '23">🏅</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                                    <h4 class="font-bold text-lg mb-4">Match History</h4>
+                                    <div class="space-y-4">
+                                        <div class="border p-4 rounded-lg">
+                                            <p class="font-bold">Inter-Hall Football '25</p>
+                                            <p class="text-sm text-gray-500">vs. Hall of Res. V</p>
+                                            <p class="font-semibold text-green-600">Result: Win (3-1)</p>
+                                        </div>
+                                         <div class="border p-4 rounded-lg">
+                                            <p class="font-bold">Inter-Hall Football '25</p>
+                                            <p class="text-sm text-gray-500">vs. Hall of Res. II</p>
+                                            <p class="font-semibold text-gray-600">Result: Draw (2-2)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Booking Views (Student & Guest) -->
                         <div x-show="view.startsWith('book')">
                             <h2 class="text-3xl font-bold text-gray-800 mb-6">Book a Facility</h2>
+                            <div x-show="loggedInUser.role === 'guest'" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg mb-6">
+                                <p>You are viewing as a guest. To book a facility, please <a href="#" @click.prevent="logout()" class="font-bold underline">Login or Register</a>.</p>
+                            </div>
                             <!-- Step 1: Select Sport -->
                             <div x-show="view === 'book'" class="grid grid-cols-2 md:grid-cols-4 gap-6">
                                 <template x-for="sport in sports" :key="sport.id">
-                                    <div @click="selectSport(sport.id)" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer text-center">
+                                    <div @click="selectSport(sport.id)" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:ring-2 hover:ring-indigo-500 transition-all cursor-pointer text-center">
                                         <span class="text-5xl" x-text="sport.icon"></span>
                                         <h3 class="font-bold text-lg mt-4" x-text="sport.name"></h3>
                                     </div>
@@ -220,20 +357,20 @@
                             </div>
                             <!-- Step 2: Select Date & Slot -->
                             <div x-show="view === 'book-slot'">
-                                <button @click="view = 'book'" class="mb-4 text-blue-600 font-semibold">← Back to Sports</button>
+                                <button @click="view = 'book'" class="mb-4 text-indigo-600 font-semibold">← Back to Sports</button>
                                 <h3 class="text-2xl font-bold mb-4" x-text="`Available Slots for ${selectedSport.name}`"></h3>
                                 <div class="bg-white p-6 rounded-lg shadow-md">
                                     <p class="font-semibold mb-4">Select a time slot for Today, July 31, 2025:</p>
                                     <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
                                         <template x-for="slot in timeSlots" :key="slot.time">
-                                            <button @click="selectSlot(slot)" :disabled="slot.status !== 'Available'" class="p-3 rounded-lg font-semibold text-sm transition-colors" :class="{ 'bg-blue-500 text-white hover:bg-blue-600': slot.status === 'Available', 'bg-gray-300 text-gray-500 cursor-not-allowed': slot.status === 'Booked', 'ring-2 ring-blue-500 bg-blue-500 text-white': selectedSlot && selectedSlot.time === slot.time }">
+                                            <button @click="selectSlot(slot)" :disabled="slot.status !== 'Available'" class="p-3 rounded-lg font-semibold text-sm transition-colors" :class="{ 'bg-indigo-500 text-white hover:bg-indigo-600': slot.status === 'Available', 'bg-gray-300 text-gray-500 cursor-not-allowed': slot.status === 'Booked', 'ring-2 ring-indigo-500 bg-indigo-500 text-white': selectedSlot && selectedSlot.time === slot.time }">
                                                 <span x-text="slot.time"></span><br>
                                                 <span class="text-xs" x-text="slot.status"></span>
                                             </button>
                                         </template>
                                     </div>
                                     <div x-show="selectedSlot" class="mt-6 text-center">
-                                        <button @click="view = 'book-confirm'" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700">Confirm Booking</button>
+                                        <button @click="loggedInUser.role !== 'guest' ? view = 'book-confirm' : alert('Please log in to book a slot.')" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 disabled:bg-gray-400" :disabled="loggedInUser.role === 'guest'">Confirm Booking</button>
                                     </div>
                                 </div>
                             </div>
@@ -242,14 +379,14 @@
                                 <h3 class="text-2xl font-bold mb-4">Confirm Your Booking</h3>
                                 <div class="bg-white p-8 rounded-lg shadow-md max-w-lg mx-auto">
                                     <p class="text-lg">You are booking:</p>
-                                    <p class="text-2xl font-bold text-blue-700" x-text="selectedSport.name"></p>
+                                    <p class="text-2xl font-bold text-indigo-700" x-text="selectedSport.name"></p>
                                     <p class="text-lg mt-4">Time:</p>
                                     <p class="text-2xl font-bold" x-text="`Today, ${selectedSlot ? selectedSlot.time : ''}`"></p>
                                     <p class="text-lg mt-4">Price:</p>
                                     <p class="text-2xl font-bold">₹150.00 (Student Rate)</p>
                                     <div class="mt-8 flex justify-between">
                                         <button @click="view = 'book-slot'" class="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg">Back</button>
-                                        <button @click="confirmBooking()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Pay & Book Now</button>
+                                        <button @click="confirmBooking()" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg">Pay & Book Now</button>
                                     </div>
                                 </div>
                             </div>
@@ -261,11 +398,14 @@
                             </div>
                         </div>
 
-                        <!-- Tournaments Views (Student & Admin) -->
+                        <!-- Tournaments Views -->
                         <div x-show="view.startsWith('tournament')">
                             <!-- Tournament List -->
                             <div x-show="view === 'tournaments'">
-                                <h2 class="text-3xl font-bold text-gray-800 mb-6">Tournaments</h2>
+                                <div class="flex justify-between items-center mb-6">
+                                    <h2 class="text-3xl font-bold text-gray-800">Tournaments</h2>
+                                    <button x-show="loggedInUser.role === 'admin'" @click="openNewTournamentModal()" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Create Tournament</button>
+                                </div>
                                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
                                     <table class="w-full">
                                         <thead class="bg-gray-50">
@@ -282,7 +422,10 @@
                                                     <td class="p-4 font-semibold" x-text="tournament.name"></td>
                                                     <td class="p-4 text-gray-600" x-text="tournament.sport"></td>
                                                     <td class="p-4"><span class="text-xs font-semibold px-2 py-1 rounded-full" :class="tournament.statusClass" x-text="tournament.status"></span></td>
-                                                    <td class="p-4 text-right"><button @click="selectTournament(tournament.id)" class="text-blue-600 font-semibold">View Bracket</button></td>
+                                                    <td class="p-4 text-right">
+                                                        <button x-show="tournament.status === 'Registration Open' && loggedInUser.role === 'student'" @click="selectTournament(tournament.id); registerForTournament()" class="text-indigo-600 font-semibold">Register</button>
+                                                        <button x-show="tournament.status !== 'Registration Open' || loggedInUser.role !== 'student'" @click="selectTournament(tournament.id)" class="text-indigo-600 font-semibold">View Bracket</button>
+                                                    </td>
                                                 </tr>
                                             </template>
                                         </tbody>
@@ -291,23 +434,28 @@
                             </div>
                             <!-- Tournament Detail / Bracket -->
                             <div x-show="view === 'tournament-detail'">
-                                <button @click="view = 'tournaments'" class="mb-4 text-blue-600 font-semibold">← Back to Tournaments</button>
+                                <button @click="view = 'tournaments'" class="mb-4 text-indigo-600 font-semibold">← Back to Tournaments</button>
                                 <h2 class="text-3xl font-bold text-gray-800 mb-2" x-text="selectedTournament.name"></h2>
                                 <p class="text-gray-500 mb-6">Semi-Finals</p>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div x-show="loggedInUser.role === 'admin'" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg md:col-span-2">
                                         <p><strong>Admin Action:</strong> Click on a match to update its score.</p>
                                     </div>
-                                    <template x-for="match in selectedTournament.matches" :key="match.id">
-                                        <div @click="loggedInUser.role === 'admin' ? selectMatch(match.id) : null" class="bg-white p-4 rounded-lg shadow-md" :class="{'cursor-pointer hover:bg-blue-50': loggedInUser.role === 'admin'}">
-                                            <p class="text-sm text-gray-500" x-text="`Match ${match.id}`"></p>
-                                            <div class="flex justify-between items-center mt-2">
-                                                <span class="font-semibold" x-text="match.team1"></span><span class="font-bold text-xl" x-text="match.score1"></span>
+                                    <template x-if="selectedTournament.matches && selectedTournament.matches.length > 0">
+                                        <template x-for="match in selectedTournament.matches" :key="match.id">
+                                            <div @click="loggedInUser.role === 'admin' ? selectMatch(match.id) : null" class="bg-white p-4 rounded-lg shadow-md" :class="{'cursor-pointer hover:bg-indigo-50': loggedInUser.role === 'admin'}">
+                                                <p class="text-sm text-gray-500" x-text="`Match ${match.id}`"></p>
+                                                <div class="flex justify-between items-center mt-2">
+                                                    <span class="font-semibold" x-text="match.team1"></span><span class="font-bold text-xl" x-text="match.score1"></span>
+                                                </div>
+                                                <div class="flex justify-between items-center mt-1">
+                                                    <span class="font-semibold" x-text="match.team2"></span><span class="font-bold text-xl" x-text="match.score2"></span>
+                                                </div>
                                             </div>
-                                            <div class="flex justify-between items-center mt-1">
-                                                <span class="font-semibold" x-text="match.team2"></span><span class="font-bold text-xl" x-text="match.score2"></span>
-                                            </div>
-                                        </div>
+                                        </template>
+                                    </template>
+                                    <template x-if="!selectedTournament.matches || selectedTournament.matches.length === 0">
+                                        <p class="text-gray-500 md:col-span-2">Brackets for this tournament have not been generated yet.</p>
                                     </template>
                                 </div>
                             </div>
@@ -329,7 +477,7 @@
                                         </div>
                                         <div class="mt-8 flex justify-between">
                                             <button @click="view = 'tournament-detail'" class="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg">Cancel</button>
-                                            <button @click="updateScore()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Save Score</button>
+                                            <button @click="updateScore()" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg">Save Score</button>
                                         </div>
                                     </div>
                                 </template>
@@ -375,6 +523,60 @@
                 </main>
             </div>
         </template>
+        
+        <!-- Modal -->
+        <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+            <div @click.outside="showModal = false" class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full modal-content" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 transform scale-90" x-transition:enter-end="opacity-100 transform scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-90">
+                <!-- Registration Modal Content -->
+                <div x-show="modalContent === 'register'">
+                    <h3 class="text-2xl font-bold mb-4" x-text="`Register for ${selectedTournament.name}`"></h3>
+                    <p class="mb-4">You can create a new team or join an existing one.</p>
+                    <label for="teamName" class="block font-semibold mb-2">Create a New Team:</label>
+                    <input type="text" id="teamName" x-model="newTeamName" placeholder="e.g., The All-Stars" class="w-full p-2 border rounded-lg mb-4">
+                    <div class="flex justify-end">
+                        <button @click="processRegistration()" :disabled="!newTeamName" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg disabled:bg-gray-400">Create Team & Proceed to Payment</button>
+                    </div>
+                </div>
+                <!-- Payment Modal Content -->
+                <div x-show="modalContent === 'payment'">
+                    <h3 class="text-2xl font-bold mb-4">Confirm Payment</h3>
+                    <p>Team: <strong x-text="newTeamName"></strong></p>
+                    <p>Tournament: <strong x-text="selectedTournament.name"></strong></p>
+                    <p class="text-3xl font-bold my-4" x-text="`Fee: ₹${selectedTournament.fee}.00`"></p>
+                    <div class="flex justify-end">
+                        <button @click="processPayment()" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Confirm & Pay</button>
+                    </div>
+                </div>
+                <!-- New Tournament Modal Content (Admin) -->
+                <div x-show="modalContent === 'new-tournament'">
+                    <h3 class="text-2xl font-bold mb-4">Create New Tournament</h3>
+                    <form @submit.prevent="createNewTournament">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="tourneyName" class="block font-semibold mb-1">Tournament Name</label>
+                                <input type="text" id="tourneyName" name="name" required class="w-full p-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label for="tourneySport" class="block font-semibold mb-1">Sport</label>
+                                <select id="tourneySport" name="sport" required class="w-full p-2 border rounded-lg bg-white">
+                                    <template x-for="sport in sports" :key="sport.id">
+                                        <option :value="sport.name" x-text="sport.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="tourneyFee" class="block font-semibold mb-1">Entry Fee (₹)</label>
+                                <input type="number" id="tourneyFee" name="fee" required class="w-full p-2 border rounded-lg">
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end">
+                             <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">Create Tournament</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
     </div>
 </body>
 </html>
